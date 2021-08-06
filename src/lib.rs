@@ -1,12 +1,32 @@
+//! Quickly check if a given IP is in a set of networks.
+//! # Examples
+//! ```
+//! use ipset::Ipset;
+//! fn main() {
+//!     let networks = vec![
+//!         "10.10.0.0/16".parse().unwrap(),
+//!         "11.10.0.0/16".parse().unwrap(),
+//!     ];
+//!     let set = Ipset::new(&networks);
+//!     assert!(set.contains(&"10.10.0.0".parse().unwrap()));
+//!     assert!(set.contains(&"11.10.0.0".parse().unwrap()));
+//!     assert!(!set.contains(&"9.10.0.0".parse().unwrap()));
+//!     assert!(!set.contains(&"12.10.0.0".parse().unwrap()));
+//! }
+//! ```
+
+pub use ipnetwork;
 use ipnetwork::Ipv4Network;
 use std::net::Ipv4Addr;
 
+/// Stores a set of networks and can quickly query if a given IP is in the set.
 #[derive(Default)]
 pub struct Ipset {
     entries: [(Entry, bool); 32],
 }
 
 impl Ipset {
+    /// Find the union of the given networks.
     pub fn new(networks: &[Ipv4Network]) -> Self {
         let mut this = Self::default();
         for net in networks {
@@ -15,6 +35,7 @@ impl Ipset {
         this
     }
 
+    /// Insert a network into the set.
     pub fn insert(&mut self, net: &Ipv4Network) {
         // Special case, if they specify a CIDR with /0 that means
         // match everything.
@@ -34,6 +55,7 @@ impl Ipset {
         }
     }
 
+    /// Is the given IP in the set of IP networks?
     pub fn contains(&self, ip: &Ipv4Addr) -> bool {
         let octets = ip.octets();
         let all_bits = octets.iter().map(|b| bits(*b)).flatten();
