@@ -2,6 +2,7 @@
 //! # Examples
 //! ```
 //! use ipset::Ipset;
+//!
 //! fn main() {
 //!     let networks = vec![
 //!         "10.10.0.0/16".parse().unwrap(),
