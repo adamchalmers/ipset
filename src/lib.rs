@@ -23,7 +23,7 @@ use std::net::Ipv4Addr;
 #[derive(Default)]
 pub struct Ipset {
     entries: [Entry; 32],
-    terminal: BitArray,
+    terminal: BitArr!(for 32),
 }
 
 impl Ipset {
@@ -117,10 +117,10 @@ impl Entry {
     }
 }
 
-fn bits(byte: u8) -> [bool; 8] {
-    let mut array: [bool; 8] = Default::default();
-    for i in 0u8..8u8 {
-        array[i as usize] = is_bit_set(byte, i)
+fn bits(byte: u8) -> BitArr!(for 8) {
+    let mut array: BitArray = Default::default();
+    for i in 0..8 {
+        array.set(i as usize, is_bit_set(byte, i));
     }
     array
 }
@@ -177,19 +177,6 @@ mod tests {
         ];
         for (byte, i, expected) in tests {
             assert_eq!(is_bit_set(byte, i), expected);
-        }
-    }
-
-    #[test]
-    fn test_bits() {
-        let tests = vec![
-            (33, [true, false, false, false, false, true, false, false]),
-            (10, [false, true, false, true, false, false, false, false]),
-            (9, [true, false, false, true, false, false, false, false]),
-        ];
-        for (i, (byte, expected_bits)) in tests.into_iter().enumerate() {
-            let actual_bits = bits(byte);
-            assert_eq!(expected_bits, actual_bits, "test {}", i);
         }
     }
 }
