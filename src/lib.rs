@@ -20,7 +20,7 @@ use ipnetwork::Ipv4Network;
 use std::net::Ipv4Addr;
 
 /// Stores a set of networks and can quickly query if a given IP is in the set.
-#[derive(Default, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Default, Clone, Copy)]
 pub struct Ipset {
     // For each of the 32 bits in an IP, does the set contain a network where
     // that bit is set?
@@ -51,18 +51,30 @@ impl Ipset {
         }
 
         let num_bits = net.prefix() as usize;
-        self.terminal.set(num_bits - 1, true);
 
         for (o, octet) in net.network().octets().iter().enumerate() {
             for (b, bit) in bits(*octet).iter().enumerate() {
                 let i = (o * 8) + b;
+
                 if i == num_bits {
+                    // This network has now been inserted.
+                    self.terminal.set(i - 1, true);
                     return;
                 }
+
+                // Mark that there's a network with the given bit at this
+                // particular index.
                 if *bit {
                     Entry::add_one(&mut self.entries[i])
                 } else {
                     Entry::add_zero(&mut self.entries[i])
+                }
+
+                // If there's already a network that ends here, then we're
+                // inserting a subnet of a previous network. So we can terminate
+                // early.
+                if self.terminal.get(i).as_deref() == Some(&true) {
+                    return;
                 }
             }
         }
@@ -178,6 +190,17 @@ mod tests {
         assert!(set.contains(&"10.10.0.0".parse().unwrap()));
         assert!(set.contains(&"11.10.0.0".parse().unwrap()));
         assert!(!set.contains(&"12.10.0.0".parse().unwrap()));
+    }
+
+    #[test]
+    fn test_subnet() {
+        let networks = vec![
+            "10.10.0.0/4".parse().unwrap(),
+            "10.10.0.0/16".parse().unwrap(),
+        ];
+        let set = Ipset::new(&networks);
+        assert!(!set.contains(&"9.10.0.0".parse().unwrap()));
+        assert!(set.contains(&"10.10.0.0".parse().unwrap()));
     }
 
     #[test]
