@@ -3,17 +3,15 @@
 //! ```
 //! use ipset::Ipset;
 //!
-//! fn main() {
-//!     let networks = vec![
-//!         "10.10.0.0/16".parse().unwrap(),
-//!         "11.10.0.0/16".parse().unwrap(),
-//!     ];
-//!     let set = Ipset::new(&networks);
-//!     assert!(set.contains(&"10.10.0.0".parse().unwrap()));
-//!     assert!(set.contains(&"11.10.0.0".parse().unwrap()));
-//!     assert!(!set.contains(&"9.10.0.0".parse().unwrap()));
-//!     assert!(!set.contains(&"12.10.0.0".parse().unwrap()));
-//! }
+//! let networks = vec![
+//!     "10.10.0.0/16".parse().unwrap(),
+//!     "11.10.0.0/16".parse().unwrap(),
+//! ];
+//! let set = Ipset::new(&networks);
+//! assert!(set.contains(&"10.10.0.0".parse().unwrap()));
+//! assert!(set.contains(&"11.10.0.0".parse().unwrap()));
+//! assert!(!set.contains(&"9.10.0.0".parse().unwrap()));
+//! assert!(!set.contains(&"12.10.0.0".parse().unwrap()));
 //! ```
 
 pub use ipnetwork;
@@ -45,9 +43,12 @@ impl Ipset {
             return;
         }
 
-        let bits = significant_bits(net);
-        self.entries[bits.len() - 1].1 = true;
-        for (i, bit) in bits.into_iter().enumerate() {
+        let num_bits = net.prefix() as usize;
+        let octets = net.network().octets();
+        let bits = octets.iter().map(|b| bits(*b)).flatten().take(num_bits);
+
+        self.entries[num_bits - 1].1 = true;
+        for (i, bit) in bits.enumerate() {
             self.entries[i].0 = if bit {
                 Entry::add_one(self.entries[i].0)
             } else {
@@ -108,17 +109,6 @@ impl Entry {
             (Self::Both, _) | (Self::One, true) | (Self::Zero, false)
         )
     }
-}
-
-fn significant_bits(net: &Ipv4Network) -> Vec<bool> {
-    let num_bits = net.prefix() as usize;
-    net.network()
-        .octets()
-        .iter()
-        .map(|b| bits(*b))
-        .flatten()
-        .take(num_bits)
-        .collect()
 }
 
 fn bits(byte: u8) -> [bool; 8] {
@@ -182,18 +172,6 @@ mod tests {
         for (byte, i, expected) in tests {
             assert_eq!(is_bit_set(byte, i), expected);
         }
-    }
-
-    #[test]
-    fn test_significant_bits() {
-        let net: Ipv4Network = "10.9.0.32/15".parse().unwrap();
-        let bits = significant_bits(&net);
-        let expected = vec![
-            false, true, false, true, false, false, false, false, false, false, false, true, false,
-            false, false,
-        ];
-        assert_eq!(bits.len(), expected.len());
-        assert_eq!(bits, expected);
     }
 
     #[test]
