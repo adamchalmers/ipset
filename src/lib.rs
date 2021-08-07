@@ -14,6 +14,7 @@
 //! assert!(!set.contains(&"12.10.0.0".parse().unwrap()));
 //! ```
 
+use bitvec::prelude::*;
 pub use ipnetwork;
 use ipnetwork::Ipv4Network;
 use std::net::Ipv4Addr;
@@ -21,7 +22,8 @@ use std::net::Ipv4Addr;
 /// Stores a set of networks and can quickly query if a given IP is in the set.
 #[derive(Default)]
 pub struct Ipset {
-    entries: [(Entry, bool); 32],
+    entries: [Entry; 32],
+    terminal: BitArray,
 }
 
 impl Ipset {
@@ -39,12 +41,13 @@ impl Ipset {
         // Special case, if they specify a CIDR with /0 that means
         // match everything.
         if net.prefix() == 0 {
-            self.entries[0] = (Entry::Both, true);
+            self.entries[0] = Entry::Both;
+            self.terminal.set(0, true);
             return;
         }
 
         let num_bits = net.prefix() as usize;
-        self.entries[num_bits - 1].1 = true;
+        self.terminal.set(num_bits - 1, true);
 
         for (o, octet) in net.network().octets().iter().enumerate() {
             for (b, bit) in bits(*octet).iter().enumerate() {
@@ -52,10 +55,10 @@ impl Ipset {
                 if i == num_bits {
                     return;
                 }
-                self.entries[i].0 = if *bit {
-                    Entry::add_one(self.entries[i].0)
+                self.entries[i] = if *bit {
+                    Entry::add_one(self.entries[i])
                 } else {
-                    Entry::add_zero(self.entries[i].0)
+                    Entry::add_zero(self.entries[i])
                 }
             }
         }
@@ -66,11 +69,10 @@ impl Ipset {
         let octets = ip.octets();
         let all_bits = octets.iter().map(|b| bits(*b)).flatten();
         for (i, bit) in all_bits.enumerate() {
-            let (entry, done) = self.entries[i];
-            if done {
+            if self.terminal[i] {
                 return true;
             }
-            if !entry.matches(bit) {
+            if !self.entries[i].matches(bit) {
                 return false;
             }
         }
@@ -124,7 +126,7 @@ fn bits(byte: u8) -> [bool; 8] {
 }
 
 fn is_bit_set(byte: u8, i: u8) -> bool {
-    let has_only_this_bit_set = 2_u8.pow(i as u32);
+    let has_only_this_bit_set = 1 << i;
     (byte & has_only_this_bit_set) != 0
 }
 
