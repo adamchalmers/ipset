@@ -1,8 +1,16 @@
 # Ipset
 Quickly check if a given IP is in a set of networks.
 
-## Examples
+## Performance
+On my Macbook, `Ipset::contains` takes 15ns, `Ipset::insert` takes 80ns, and the
+`Ipset` type's size is 40 bytes. All operations take constant i.e. O(1) time and
+space.
 
+Implementation is inspired by hash array mapped tries, but because IPs only have
+two possible symbols and always have a fixed length, we can use a very compact
+and specialized representation. Bitwise operations make this very fast.
+
+## Examples
 ```rust
 use ipset::Ipset;
 fn main() {

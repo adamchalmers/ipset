@@ -20,7 +20,7 @@ use ipnetwork::Ipv4Network;
 use std::net::Ipv4Addr;
 
 /// Stores a set of networks and can quickly query if a given IP is in the set.
-#[derive(Default)]
+#[derive(Default, Clone, PartialEq, Eq, Copy, Hash)]
 pub struct Ipset {
     // For each of the 32 bits in an IP, does the set contain a network where
     // that bit is set?
@@ -86,7 +86,7 @@ impl Ipset {
 
 /// Does the Ipset contain a network with the given bit value at a particular
 /// index?
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, Hash)]
 enum Entry {
     /// Yes, at least one network has a zero at this bit.
     Zero,
