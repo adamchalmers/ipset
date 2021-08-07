@@ -22,7 +22,11 @@ use std::net::Ipv4Addr;
 /// Stores a set of networks and can quickly query if a given IP is in the set.
 #[derive(Default)]
 pub struct Ipset {
+    // For each of the 32 bits in an IP, does the set contain a network where
+    // that bit is set?
     entries: [Entry; 32],
+    // For each of the 32 bits in an IP, does the set contain a network which
+    // ends at that bit?
     terminal: BitArr!(for 32),
 }
 
@@ -55,10 +59,10 @@ impl Ipset {
                 if i == num_bits {
                     return;
                 }
-                self.entries[i] = if *bit {
-                    Entry::add_one(self.entries[i])
+                if *bit {
+                    Entry::add_one(&mut self.entries[i])
                 } else {
-                    Entry::add_zero(self.entries[i])
+                    Entry::add_zero(&mut self.entries[i])
                 }
             }
         }
@@ -80,11 +84,17 @@ impl Ipset {
     }
 }
 
+/// Does the Ipset contain a network with the given bit value at a particular
+/// index?
 #[derive(Eq, PartialEq, Clone, Copy)]
 enum Entry {
+    /// Yes, at least one network has a zero at this bit.
     Zero,
+    /// Yes, at least one network has a one at this bit.
     One,
+    /// Yes, there are networks with zero and others with one at this bit.
     Both,
+    /// No.
     Neither,
 }
 
@@ -95,18 +105,22 @@ impl Default for Entry {
 }
 
 impl Entry {
-    fn add_zero(self) -> Self {
-        match self {
+    /// A network with a zero at this bit was added to the Ipset.
+    #[inline]
+    fn add_zero(&mut self) {
+        *self = match &self {
             Self::Neither => Self::Zero,
             Self::One => Self::Both,
-            other => other,
+            other => **other,
         }
     }
-    fn add_one(self) -> Self {
-        match self {
+    /// A network with a one at this bit was added to the Ipset.
+    #[inline]
+    fn add_one(&mut self) {
+        *self = match &self {
             Self::Neither => Self::One,
             Self::Zero => Self::Both,
-            other => other,
+            other => **other,
         }
     }
     fn matches(&self, b: bool) -> bool {
@@ -117,6 +131,8 @@ impl Entry {
     }
 }
 
+/// Convert the byte to an array of bits.
+#[inline]
 fn bits(byte: u8) -> BitArr!(for 8) {
     let mut array: BitArray = Default::default();
     for i in 0..8 {
@@ -125,7 +141,8 @@ fn bits(byte: u8) -> BitArr!(for 8) {
     array
 }
 
-fn is_bit_set(byte: u8, i: u8) -> bool {
+/// Does the byte have a 1 at the given index?
+const fn is_bit_set(byte: u8, i: u8) -> bool {
     let has_only_this_bit_set = 1 << i;
     (byte & has_only_this_bit_set) != 0
 }
