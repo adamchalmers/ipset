@@ -1,9 +1,8 @@
-use std::net::Ipv4Addr;
-
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use ipnetwork::Ipv4Network;
 use ipset::Ipset;
 use rand::{thread_rng, Rng};
+use std::net::Ipv4Addr;
 
 fn bench_contains(c: &mut Criterion) {
     let num_networks = 10;
@@ -20,8 +19,9 @@ fn bench_contains(c: &mut Criterion) {
         });
     });
 }
+
 fn bench_insert(c: &mut Criterion) {
-    let difficulties = vec![1, 10, 100];
+    let difficulties = vec![1, 10];
     for d in difficulties {
         c.bench_with_input(BenchmarkId::new("Insert", d), &d, |b, d| {
             let mut set = Ipset::default();

@@ -44,15 +44,19 @@ impl Ipset {
         }
 
         let num_bits = net.prefix() as usize;
-        let octets = net.network().octets();
-        let bits = octets.iter().map(|b| bits(*b)).flatten().take(num_bits);
-
         self.entries[num_bits - 1].1 = true;
-        for (i, bit) in bits.enumerate() {
-            self.entries[i].0 = if bit {
-                Entry::add_one(self.entries[i].0)
-            } else {
-                Entry::add_zero(self.entries[i].0)
+
+        for (o, octet) in net.network().octets().iter().enumerate() {
+            for (b, bit) in bits(*octet).iter().enumerate() {
+                let i = (o * 8) + b;
+                if i == num_bits {
+                    return;
+                }
+                self.entries[i].0 = if *bit {
+                    Entry::add_one(self.entries[i].0)
+                } else {
+                    Entry::add_zero(self.entries[i].0)
+                }
             }
         }
     }
